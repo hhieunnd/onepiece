@@ -5,6 +5,7 @@ import (
 	"onepiece/ast"
 	"onepiece/lexer"
 	"onepiece/token"
+	"strconv"
 )
 
 const (
@@ -56,6 +57,19 @@ func New(l *lexer.Lexer) *Parser {
 
 	p.prefixParserFns = make(map[token.TokenType]prefixParserFn)
 	p.registerPrefix(token.IDENT, p.parserIdentifier)
+	p.registerPrefix(token.INT, p.parseIntergerLiteral)
+	p.registerPrefix(token.BANG, p.parsePrefixExpression)
+	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
+
+	p.infixParserFns = make(map[token.TokenType]infixParserFn)
+	p.registerInfix(token.PLUS, p.parseInfixExpression)
+	p.registerInfix(token.MINUS, p.parseInfixExpression)
+	p.registerInfix(token.SLASH, p.parseInfixExpression)
+	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
+	p.registerInfix(token.EQ, p.parseInfixExpression)
+	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
+	p.registerInfix(token.LT, p.parseInfixExpression)
+	p.registerInfix(token.GT, p.parseInfixExpression)
 
 	p.nextToken()
 	p.nextToken()
@@ -68,7 +82,7 @@ func (p *Parser) nextToken() {
 	p.peekToken = p.l.NextToken()
 }
 
-func (p *Parser) ParserProgram() *ast.Program {
+func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
 
@@ -84,7 +98,7 @@ func (p *Parser) ParserProgram() *ast.Program {
 	return program
 }
 
-func (p *Parser) parserLetStatement() *ast.LetStatement {
+func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken}
 
 	if !p.expectPeek(token.IDENT) {
@@ -105,7 +119,7 @@ func (p *Parser) parserLetStatement() *ast.LetStatement {
 	return stmt
 }
 
-func (p *Parser) parserReturnStatement() *ast.ReturnStatement {
+func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 
 	// Skip to semicolon
@@ -116,7 +130,7 @@ func (p *Parser) parserReturnStatement() *ast.ReturnStatement {
 	return stmt
 }
 
-func (p *Parser) parserExpressionStatement() *ast.ExpressionStatement {
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
 
 	stmt.Expression = p.parseExpression(LOWEST)
@@ -132,10 +146,22 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParserFns[p.curToken.Type]
 
 	if prefix == nil {
+		p.noPrefixParseFnError(p.curToken.Type)
 		return nil
 	}
 
 	left := prefix()
+
+	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
+		infix := p.infixParserFns[p.curToken.Type]
+
+		if infix == nil {
+			return left
+		}
+
+		p.nextToken()
+		left = infix(left)
+	}
 	return left
 }
 
@@ -164,10 +190,81 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 func (p *Parser) parserStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
-		return p.parserLetStatement()
+		return p.parseLetStatement()
 	case token.RETURN:
-		return p.parserReturnStatement()
+		return p.parseReturnStatement()
 	default:
-		return p.parserExpressionStatement()
+		return p.parseExpressionStatement()
 	}
+}
+
+func (p *Parser) parseIntergerLiteral() ast.Expression {
+	lit := &ast.IntegerLiteral{Token: p.curToken}
+
+	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
+	if err != nil {
+		msg := fmt.Sprintf("cound not parse %q as interger", p.curToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	lit.Value = value
+	return lit
+}
+
+func (p *Parser) noPrefixParseFnError(t token.TokenType) {
+	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	p.errors = append(p.errors, msg)
+}
+
+func (p *Parser) parsePrefixExpression() ast.Expression {
+	expression := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+	}
+
+	p.nextToken()
+	expression.Right = p.parseExpression(PREFIX)
+	return expression
+}
+
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	expression := &ast.InfixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+
+	precedence := p.curPrecedence()
+	p.nextToken()
+	expression.Right = p.parseExpression(precedence)
+
+	return expression
+}
+
+var precedences = map[token.TokenType]int{
+	token.EQ:       EQUALS,
+	token.NOT_EQ:   EQUALS,
+	token.LT:       LESSGREATER,
+	token.GT:       LESSGREATER,
+	token.PLUS:     SUM,
+	token.MINUS:    SUM,
+	token.SLASH:    PRODUCT,
+	token.ASTERISK: PRODUCT,
+}
+
+func (pa *Parser) peekPrecedence() int {
+	if p, ok := precedences[pa.peekToken.Type]; ok {
+		return p
+	}
+
+	return LOWEST
+}
+
+func (pa *Parser) curPrecedence() int {
+	if p, ok := precedences[pa.curToken.Type]; ok {
+		return p
+	}
+
+	return LOWEST
 }
