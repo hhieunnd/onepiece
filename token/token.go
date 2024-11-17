@@ -39,6 +39,8 @@ const (
 	ELSE     = "ELSE"
 	FALSE    = "FALSE"
 	TRUE     = "TRUE"
+
+	STRING = "STRING"
 )
 
 type TokenType string
