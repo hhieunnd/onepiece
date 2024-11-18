@@ -98,7 +98,7 @@ func TestReturnStatements(t *testing.T) {
 	for _, stmt := range program.Statements {
 		returnStmt, ok := stmt.(*ast.ReturnStatement)
 		if !ok {
-			t.Errorf("stmt not *ast.returnStatment, got=%T", stmt)
+			t.Errorf("stmt not *ast.returnStatement, got=%T", stmt)
 			continue
 		}
 
@@ -117,7 +117,7 @@ func TestIdentifierExpression(t *testing.T) {
 	checkParserErrors(t, p)
 
 	if len(program.Statements) != 1 {
-		t.Fatalf("program not have enought statements, got = %d", len(program.Statements))
+		t.Fatalf("program not have enough statements, got = %d", len(program.Statements))
 	}
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
@@ -139,7 +139,7 @@ func TestIdentifierExpression(t *testing.T) {
 	}
 }
 
-func TestIntergerLiteralExpression(t *testing.T) {
+func TestIntegerLiteralExpression(t *testing.T) {
 	input := "5;"
 
 	l := lexer.New(input)
@@ -149,7 +149,7 @@ func TestIntergerLiteralExpression(t *testing.T) {
 	checkParserErrors(t, p)
 
 	if len(program.Statements) != 1 {
-		t.Fatalf("program has not enought statments. got=%d", len(program.Statements))
+		t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
 	}
 
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
@@ -159,7 +159,7 @@ func TestIntergerLiteralExpression(t *testing.T) {
 
 	literal, ok := stmt.Expression.(*ast.IntegerLiteral)
 	if !ok {
-		t.Fatalf("exp not *ast.IntergerLiteral, git =%T", stmt.Expression)
+		t.Fatalf("exp not *ast.IntegerLiteral, git =%T", stmt.Expression)
 	}
 
 	if literal.Value != 5 {
@@ -173,7 +173,7 @@ func TestIntergerLiteralExpression(t *testing.T) {
 
 func TestParsingPrefixExpression(t *testing.T) {
 	prefixTests := []struct {
-		intput       string
+		input        string
 		operator     string
 		integerValue int64
 	}{
@@ -182,7 +182,7 @@ func TestParsingPrefixExpression(t *testing.T) {
 	}
 
 	for _, tt := range prefixTests {
-		l := lexer.New(tt.intput)
+		l := lexer.New(tt.input)
 		p := New(l)
 		program := p.ParseProgram()
 		checkParserErrors(t, p)
@@ -402,11 +402,11 @@ func testIntegerLiteral(t *testing.T, il ast.Expression, value int64) bool {
 		return false
 	}
 	if integer.Value != value {
-		t.Errorf("integ.Value not %d. got=%d", value, integer.Value)
+		t.Errorf("integer.Value not %d. got=%d", value, integer.Value)
 		return false
 	}
 	if integer.TokenLiteral() != fmt.Sprintf("%d", value) {
-		t.Errorf("integ.TokenLiteral not %d. got=%s", value,
+		t.Errorf("integer.TokenLiteral not %d. got=%s", value,
 			integer.TokenLiteral())
 		return false
 	}

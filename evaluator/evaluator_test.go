@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestEvalIntergerExpression(t *testing.T) {
+func TestEvalIntegerExpression(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected int64
@@ -211,7 +211,7 @@ func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
-	env := object.NewEnviroment()
+	env := object.NewEnvironment()
 
 	return Eval(program, env)
 }
@@ -219,7 +219,7 @@ func testEval(input string) object.Object {
 func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 	result, ok := obj.(*object.Integer)
 	if !ok {
-		t.Errorf("object is not interger. got=%T (%+v)", obj, obj)
+		t.Errorf("object is not integer. got=%T (%+v)", obj, obj)
 		return false
 	}
 
