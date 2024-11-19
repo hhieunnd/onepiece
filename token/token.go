@@ -43,6 +43,7 @@ const (
 	TRUE     = "TRUE"
 
 	STRING = "STRING"
+	COLON  = ":"
 )
 
 type TokenType string
