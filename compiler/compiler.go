@@ -13,6 +13,7 @@ type Compiler struct {
 
 	lasInstruction      EmittedInstruction
 	previousInstruction EmittedInstruction
+	symbolTable         *SymbolTable
 }
 
 func New() *Compiler {
@@ -21,6 +22,7 @@ func New() *Compiler {
 		constants:           []object.Object{},
 		lasInstruction:      EmittedInstruction{},
 		previousInstruction: EmittedInstruction{},
+		symbolTable:         NewSymbolTable(),
 	}
 }
 
@@ -123,15 +125,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.removeLastPop()
 		}
 
+		jump := c.emit(code.OpJump, 9999)
+
+		afterConsequencePos := len(c.instructions)
+		c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+
 		if node.Alternative == nil {
-			afterConsequencePos := len(c.instructions)
-			c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+			c.emit(code.OpNull)
 		} else {
-			jump := c.emit(code.OpJump, 9999)
-
-			afterConsequencePos := len(c.instructions)
-			c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
-
 			err = c.Compile(node.Alternative)
 			if err != nil {
 				return err
@@ -141,9 +142,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 				c.removeLastPop()
 			}
 
-			afterAlternativePos := len(c.instructions)
-			c.changeOperand(jump, afterAlternativePos)
 		}
+
+		afterAlternativePos := len(c.instructions)
+		c.changeOperand(jump, afterAlternativePos)
 
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
@@ -152,6 +154,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return err
 			}
 		}
+	case *ast.LetStatement:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		symbol := c.symbolTable.Define(node.Name.Value)
+		c.emit(code.OpSetGlobal, symbol.Index)
+	case *ast.Identifier:
+		symbol, ok := c.symbolTable.Resolve(node.Value)
+		if !ok {
+			return fmt.Errorf("undefined variable %s", node.Value)
+		}
+
+		c.emit(code.OpGetGlobal, symbol.Index)
 	}
 	return nil
 }
@@ -220,4 +237,12 @@ type Bytecode struct {
 type EmittedInstruction struct {
 	OpCode   code.Opcode
 	Position int
+}
+
+func NewWithState(s *SymbolTable, constants []object.Object) *Compiler {
+	compiler := New()
+	compiler.symbolTable = s
+	compiler.constants = constants
+
+	return compiler
 }

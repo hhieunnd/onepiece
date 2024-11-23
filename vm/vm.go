@@ -8,22 +8,24 @@ import (
 )
 
 const StackSize = 2048
+const GlobalsSize = 65536
 
 type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
 
-	stack []object.Object
-	sp    int // Always point to the next value. Top of stack is stack[sp-1]
+	stack   []object.Object
+	sp      int // Always point to the next value. Top of stack is stack[sp-1]
+	globals []object.Object
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
 	return &VM{
 		instructions: bytecode.Instructions,
 		constants:    bytecode.Constants,
-
-		stack: make([]object.Object, StackSize),
-		sp:    0,
+		stack:        make([]object.Object, StackSize),
+		sp:           0,
+		globals:      make([]object.Object, GlobalsSize),
 	}
 }
 
@@ -37,6 +39,7 @@ func (vm *VM) StackTop() object.Object {
 
 var True = &object.Boolean{Value: true}
 var False = &object.Boolean{Value: false}
+var Null = &object.Null{}
 
 func (vm *VM) Run() error {
 	ip := 0
@@ -96,6 +99,22 @@ func (vm *VM) Run() error {
 			if !isTruthy(condition) {
 				ip = pos - 1
 			}
+		case code.OpNull:
+			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+		case code.OpSetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			vm.globals[globalIndex] = vm.pop()
+		case code.OpGetGlobal:
+			globalIndex := code.ReadUint16(vm.instructions[ip+1:])
+			ip += 2
+			err := vm.push(vm.globals[globalIndex])
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -106,6 +125,8 @@ func isTruthy(obj object.Object) bool {
 	switch obj := obj.(type) {
 	case *object.Boolean:
 		return obj.Value
+	case *object.Null:
+		return false
 	default:
 		return true
 	}
@@ -127,6 +148,8 @@ func (vm *VM) executeBangOperator() error {
 	case True:
 		return vm.push(False)
 	case False:
+		return vm.push(True)
+	case Null:
 		return vm.push(True)
 	default:
 		return vm.push(False)
@@ -237,4 +260,10 @@ func (vm *VM) executeBinaryIntegerOperation(op code.Opcode,
 		return fmt.Errorf("unknown integer operator: %d", op)
 	}
 	return vm.push(&object.Integer{Value: result})
+}
+
+func NewWithGlobalStore(bytecode *compiler.Bytecode, s []object.Object) *VM {
+	vm := New(bytecode)
+	vm.globals = s
+	return vm
 }

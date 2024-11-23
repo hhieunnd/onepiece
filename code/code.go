@@ -26,6 +26,9 @@ const (
 	OpBang
 	OpJumpNotTruthy
 	OpJump
+	OpNull
+	OpGetGlobal
+	OpSetGlobal
 )
 
 type Definition struct {
@@ -49,6 +52,9 @@ var definitions = map[Opcode]*Definition{
 	OpBang:          {"OpBang", []int{}},
 	OpJumpNotTruthy: {"OpJumpNotTruthy", []int{2}},
 	OpJump:          {"OpJump", []int{2}},
+	OpNull:          {"OpNull", []int{}},
+	OpGetGlobal:     {"OpGetGlobal", []int{2}},
+	OpSetGlobal:     {"OpSetGlobal", []int{2}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -107,13 +113,13 @@ func (ins Instructions) String() string {
 }
 
 func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
-	operansCount := len(def.OperandWidths)
+	operandsCount := len(def.OperandWidths)
 
-	if len(operands) != operansCount {
-		return fmt.Sprintf("ERROR: operand len %d does not match defined %d\n", len(operands), operansCount)
+	if len(operands) != operandsCount {
+		return fmt.Sprintf("ERROR: operand len %d does not match defined %d\n", len(operands), operandsCount)
 	}
 
-	switch operansCount {
+	switch operandsCount {
 	case 0:
 		return def.Name
 	case 1:
