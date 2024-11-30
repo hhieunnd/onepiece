@@ -37,6 +37,7 @@ const (
 	OpReturn
 	OpGetLocal
 	OpSetLocal
+	OpGetBuiltin
 )
 
 type Definition struct {
@@ -66,11 +67,12 @@ var definitions = map[Opcode]*Definition{
 	OpArray:         {"OpArray", []int{2}},
 	OpHash:          {"OpHash", []int{2}},
 	OpIndex:         {"OpIndex", []int{}},
-	OpCall:          {"OpCall", []int{}},
+	OpCall:          {"OpCall", []int{1}},
 	OpReturnValue:   {"OpReturnValue", []int{}},
 	OpReturn:        {"OpReturn", []int{}},
 	OpGetLocal:      {"OpGetLocal", []int{1}},
 	OpSetLocal:      {"OpSetLocal", []int{1}},
+	OpGetBuiltin:    {"OpGetBuiltin", []int{1}},
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -156,7 +158,7 @@ func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 		case 2:
 			operands[i] = int(ReadUint16(ins[offset:]))
 		case 1:
-			operands[i] = int(ReadUnit8(ins[offset:]))
+			operands[i] = int(ReadUint8(ins[offset:]))
 		}
 
 		offset += width
@@ -169,4 +171,4 @@ func ReadUint16(ins Instructions) uint16 {
 	return binary.BigEndian.Uint16(ins)
 }
 
-func ReadUnit8(ins Instructions) uint8 { return uint8(ins[0]) }
+func ReadUint8(ins Instructions) uint8 { return uint8(ins[0]) }
